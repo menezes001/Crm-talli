@@ -1,0 +1,373 @@
+{
+  "entities": {
+    "Workspace": {
+      "title": "Workspace",
+      "description": "Private commercial CRM workspace belonging to an authenticated sales user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the workspace owner."
+        },
+        "ownerEmail": {
+          "type": "string",
+          "maxLength": 254,
+          "description": "Verified email address of the workspace owner."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Display name of the commercial workspace."
+        },
+        "caioBaseImported": {
+          "type": "boolean",
+          "description": "Indicates whether the original Caio Pelisson referral sheet has been seeded."
+        },
+        "caioBaseImportedAt": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "ISO timestamp when the initial referral base was imported."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of workspace creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last workspace update."
+        }
+      },
+      "required": [
+        "ownerId",
+        "ownerEmail",
+        "name",
+        "caioBaseImported",
+        "caioBaseImportedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "Individual commercial contact and sales opportunity in the CRM.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner Firebase Auth UID."
+        },
+        "workspaceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Parent workspace ID."
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Contact full name."
+        },
+        "company": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Company or business name."
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Phone or WhatsApp number."
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 254,
+          "description": "Email address."
+        },
+        "city": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "City / location."
+        },
+        "segment": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Original business segment or short context."
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Lead acquisition source (e.g., Indicação do Caio (Caio Pelisson))."
+        },
+        "importedFromCaioSheet": {
+          "type": "boolean",
+          "description": "True when imported from the original Caio Pelisson referral sheet."
+        },
+        "entryDate": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Date lead entered the CRM (YYYY-MM-DD)."
+        },
+        "ownerName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Sales representative responsible for the lead."
+        },
+        "stage": {
+          "type": "string",
+          "enum": [
+            "novo_lead",
+            "primeiro_contato",
+            "aguardando_retorno",
+            "contato_estabelecido",
+            "reuniao_agendada",
+            "reuniao_realizada",
+            "proposta_enviada",
+            "em_negociacao",
+            "venda_fechada",
+            "perdido"
+          ],
+          "description": "Current sales funnel stage."
+        },
+        "potential": {
+          "type": "string",
+          "enum": ["", "baixo", "medio", "alto"],
+          "description": "Business potential classification."
+        },
+        "estimatedValue": {
+          "type": "number",
+          "description": "Estimated deal value in BRL, or null when not yet defined."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 4000,
+          "description": "General notes and observations."
+        },
+        "meetingDate": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Scheduled meeting date/time if any."
+        },
+        "interestLevel": {
+          "type": "string",
+          "enum": ["", "frio", "morno", "quente", "muito_quente"],
+          "description": "Current demonstrated interest level."
+        },
+        "nextAction": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Next required commercial action."
+        },
+        "nextFollowUpDate": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Scheduled date for next follow-up (YYYY-MM-DD)."
+        },
+        "lastContactAt": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Date/time string of the most recent recorded interaction."
+        },
+        "lastInteractionSummary": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Short summary of the latest interaction for fast lookup."
+        },
+        "interactionCount": {
+          "type": "integer",
+          "description": "Total number of logged interactions for this lead."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of lead creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "ownerId",
+        "workspaceId",
+        "fullName",
+        "company",
+        "phone",
+        "email",
+        "city",
+        "segment",
+        "source",
+        "importedFromCaioSheet",
+        "entryDate",
+        "ownerName",
+        "stage",
+        "potential",
+        "estimatedValue",
+        "notes",
+        "meetingDate",
+        "interestLevel",
+        "nextAction",
+        "nextFollowUpDate",
+        "lastContactAt",
+        "lastInteractionSummary",
+        "interactionCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Interaction": {
+      "title": "Interaction",
+      "description": "Append-only historical record of an individual commercial interaction with a lead.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner Firebase Auth UID."
+        },
+        "workspaceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Parent workspace ID."
+        },
+        "leadId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Parent lead ID."
+        },
+        "contactedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Date and time when the contact took place."
+        },
+        "channel": {
+          "type": "string",
+          "enum": ["whatsapp", "ligacao", "email", "reuniao", "outro"],
+          "description": "Channel used for the contact."
+        },
+        "interactionType": {
+          "type": "string",
+          "enum": [
+            "primeiro_contato",
+            "follow_up",
+            "qualificacao",
+            "reuniao",
+            "apresentacao_proposta",
+            "negociacao",
+            "pos_venda",
+            "outro"
+          ],
+          "description": "Category/type of interaction."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 3000,
+          "description": "Summary of how the conversation went."
+        },
+        "clientResponse": {
+          "type": "string",
+          "maxLength": 3000,
+          "description": "What the prospective client answered."
+        },
+        "interestLevel": {
+          "type": "string",
+          "enum": ["", "frio", "morno", "quente", "muito_quente"],
+          "description": "Demonstrated interest level during this contact."
+        },
+        "needsIdentified": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Key needs or pain points identified."
+        },
+        "objections": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Objections raised by the prospect."
+        },
+        "nextAction": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Required next step defined after this interaction."
+        },
+        "nextFollowUpDate": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Scheduled date for next follow-up (YYYY-MM-DD)."
+        },
+        "stageAfter": {
+          "type": "string",
+          "enum": [
+            "",
+            "novo_lead",
+            "primeiro_contato",
+            "aguardando_retorno",
+            "contato_estabelecido",
+            "reuniao_agendada",
+            "reuniao_realizada",
+            "proposta_enviada",
+            "em_negociacao",
+            "venda_fechada",
+            "perdido"
+          ],
+          "description": "Funnel stage after this interaction."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of interaction creation."
+        }
+      },
+      "required": [
+        "ownerId",
+        "workspaceId",
+        "leadId",
+        "contactedAt",
+        "channel",
+        "interactionType",
+        "summary",
+        "clientResponse",
+        "interestLevel",
+        "needsIdentified",
+        "objections",
+        "nextAction",
+        "nextFollowUpDate",
+        "stageAfter",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/workspaces/{workspaceId}": {
+      "schema": { "$ref": "#/entities/Workspace" },
+      "description": "Root private CRM workspace per authenticated user (workspaceId == ownerId)."
+    },
+    "/workspaces/{workspaceId}/leads/{leadId}": {
+      "schema": { "$ref": "#/entities/Lead" },
+      "description": "Commercial leads and opportunities belonging to the workspace."
+    },
+    "/workspaces/{workspaceId}/leads/{leadId}/interactions/{interactionId}": {
+      "schema": { "$ref": "#/entities/Interaction" },
+      "description": "Immutable chronological interaction history for each lead."
+    }
+  }
+}

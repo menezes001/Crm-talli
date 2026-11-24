@@ -1,0 +1,6 @@
+{
+  "name": "Talli CRM — Gestão Comercial de Indicações",
+  "description": "CRM comercial profissional para gestão de indicações, funil de vendas, histórico de interações e controle de follow-ups da Talli Marketing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
