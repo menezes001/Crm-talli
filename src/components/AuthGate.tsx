@@ -1,30 +1,110 @@
-import { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  getRedirectResult,
+  signInWithPopup,
+  signInWithRedirect,
+} from 'firebase/auth';
+import { ArrowRight, ExternalLink, ShieldCheck } from 'lucide-react';
+import firebaseConfig from '../../firebase-applet-config.json';
 import { auth, googleProvider } from '../lib/firebase';
 import { TalliSymbol, TalliWordmark } from './TalliBrand';
 
+interface AuthErrorState {
+  title: string;
+  detail: string;
+  code?: string;
+  showAuthorizeLink?: boolean;
+  showRedirectFallback?: boolean;
+}
+
+function mapFirebaseAuthError(err: unknown): AuthErrorState {
+  const code =
+    typeof err === 'object' && err !== null && 'code' in err
+      ? String((err as { code?: unknown }).code || '')
+      : '';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+
+  if (code === 'auth/unauthorized-domain') {
+    return {
+      title: `Domínio não autorizado no Firebase (${hostname})`,
+      detail: `Adicione "${hostname}" em Firebase Console → Authentication → Settings → Authorized domains para liberar o login neste endereço.`,
+      code,
+      showAuthorizeLink: true,
+    };
+  }
+
+  if (code === 'auth/popup-blocked') {
+    return {
+      title: 'Pop-up de login bloqueado pelo navegador',
+      detail: isInIframe
+        ? 'Permita pop-ups para este site nas configurações do navegador e clique novamente.'
+        : 'Seu navegador bloqueou a janela de login. Você pode liberar pop-ups ou entrar por redirecionamento abaixo.',
+      code,
+      showRedirectFallback: !isInIframe,
+    };
+  }
+
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+    return {
+      title: 'Login cancelado',
+      detail: 'A janela de login foi fechada antes de concluir. Clique novamente para entrar.',
+      code,
+    };
+  }
+
+  if (code === 'auth/network-request-failed') {
+    return {
+      title: 'Falha de conexão ao autenticar',
+      detail:
+        'Verifique sua conexão ou pause temporariamente extensões de bloqueio/VPN que possam estar interceptando o login do Google.',
+      code,
+    };
+  }
+
+  return {
+    title: 'Não foi possível iniciar sessão agora',
+    detail:
+      'Verifique se o domínio atual está autorizado no Firebase Authentication e se pop-ups estão permitidos.',
+    code: code || undefined,
+    showAuthorizeLink: hostname !== '' && hostname !== 'localhost',
+  };
+}
+
 export function AuthGate() {
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<AuthErrorState | null>(null);
+
+  useEffect(() => {
+    void getRedirectResult(auth).catch((err) => {
+      setAuthError(mapFirebaseAuthError(err));
+      setLoading(false);
+    });
+  }, []);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
-    setErrorMsg(null);
+    setAuthError(null);
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha ao autenticar com o Google.';
-      if (msg.includes('popup-closed-by-user')) {
-        setErrorMsg('Login cancelado. Clique novamente para entrar na sua conta.');
-      } else {
-        setErrorMsg(
-          'Não foi possível iniciar sessão agora. Verifique se pop-ups estão permitidos e tente novamente.'
-        );
-      }
+      setAuthError(mapFirebaseAuthError(err));
       setLoading(false);
     }
   };
+
+  const handleRedirectSignIn = async () => {
+    setLoading(true);
+    setAuthError(null);
+    try {
+      await signInWithRedirect(auth, googleProvider);
+    } catch (err) {
+      setAuthError(mapFirebaseAuthError(err));
+      setLoading(false);
+    }
+  };
+
+  const authorizeDomainsUrl = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/settings`;
 
   return (
     <div className="min-h-screen bg-[#12241D] text-[#F4F1EA] flex flex-col justify-between p-6 md:p-10">
@@ -88,9 +168,37 @@ export function AuthGate() {
               sincronizados em tempo real na nuvem.
             </p>
 
-            {errorMsg && (
-              <div className="mt-4 p-3 rounded-lg bg-[#FFD9C7]/60 border border-[#FF5A1F]/40 text-xs text-[#12241D] leading-relaxed">
-                {errorMsg}
+            {authError && (
+              <div className="mt-4 p-3.5 rounded-lg bg-[#FFD9C7]/60 border border-[#FF5A1F]/40 text-xs text-[#12241D] leading-relaxed space-y-2">
+                <p className="font-semibold">{authError.title}</p>
+                <p className="text-[#12241D]/85">{authError.detail}</p>
+                {authError.code && (
+                  <p className="font-mono text-[11px] text-[#12241D]/65">
+                    Código: {authError.code}
+                  </p>
+                )}
+                {authError.showAuthorizeLink && (
+                  <a
+                    href={authorizeDomainsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 font-semibold text-[#12241D] underline underline-offset-2 hover:text-[#C43E0F]"
+                  >
+                    Abrir Domínios Autorizados no Firebase Console
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+                {authError.showRedirectFallback && (
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => void handleRedirectSignIn()}
+                      className="text-xs font-bold text-[#12241D] underline underline-offset-2 hover:text-[#C43E0F] cursor-pointer"
+                    >
+                      Entrar sem pop-up (redirecionamento) →
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
