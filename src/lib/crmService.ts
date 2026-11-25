@@ -48,85 +48,98 @@ export async function ensureWorkspaceAndSeed(user: User): Promise<Workspace> {
   const workspacePath = `workspaces/${uid}`;
   const workspaceRef = doc(db, 'workspaces', uid);
 
+  // Ensure the fresh ID token is ready before the first Firestore call
+  await user.getIdToken();
+
+  let snap;
   try {
-    const snap = await getDoc(workspaceRef);
-    if (snap.exists()) {
-      const data = snap.data();
-      return {
-        id: snap.id,
-        ownerId: data.ownerId,
-        ownerEmail: data.ownerEmail,
-        name: data.name,
-        caioBaseImported: Boolean(data.caioBaseImported),
-        caioBaseImportedAt: data.caioBaseImportedAt || '',
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-      };
-    }
+    snap = await getDoc(workspaceRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, workspacePath);
+  }
 
-    const nowISO = new Date().toISOString();
-    const todayISO = getTodayISO();
+  if (snap.exists()) {
+    const data = snap.data();
+    return {
+      id: snap.id,
+      ownerId: data.ownerId,
+      ownerEmail: data.ownerEmail,
+      name: data.name,
+      caioBaseImported: Boolean(data.caioBaseImported),
+      caioBaseImportedAt: data.caioBaseImportedAt || '',
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    };
+  }
 
-    const workspacePayload = {
+  const nowISO = new Date().toISOString();
+  const todayISO = getTodayISO();
+
+  const workspacePayload = {
+    ownerId: uid,
+    ownerEmail: clampString(user.email || '', 254),
+    name: 'Talli Marketing — Comercial',
+    caioBaseImported: true,
+    caioBaseImportedAt: nowISO,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  // Create workspace first so Master Gate parent lookup passes on lead batch creation
+  try {
+    await setDoc(workspaceRef, workspacePayload);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, workspacePath);
+  }
+
+  const seeds = getCaioSeedContacts(todayISO);
+  const batch = writeBatch(db);
+
+  for (const seed of seeds) {
+    const leadRef = doc(db, 'workspaces', uid, 'leads', seed.seedId);
+    batch.set(leadRef, {
       ownerId: uid,
-      ownerEmail: clampString(user.email || '', 254),
-      name: 'Talli Marketing — Comercial',
-      caioBaseImported: true,
-      caioBaseImportedAt: nowISO,
+      workspaceId: uid,
+      fullName: clampString(seed.fullName, FIELD_LIMITS.fullName) || 'A confirmar',
+      company: clampString(seed.company, FIELD_LIMITS.company) || 'Empresa não informada',
+      phone: clampString(seed.phone, FIELD_LIMITS.phone),
+      email: clampString(seed.email, FIELD_LIMITS.email),
+      city: clampString(seed.city, FIELD_LIMITS.city),
+      segment: clampString(seed.segment, FIELD_LIMITS.segment),
+      source: clampString(seed.source || CAIO_REFERRAL_SOURCE, FIELD_LIMITS.source),
+      importedFromCaioSheet: true,
+      entryDate: clampString(seed.entryDate || todayISO, FIELD_LIMITS.entryDate),
+      ownerName: clampString(seed.ownerName, FIELD_LIMITS.ownerName),
+      stage: seed.stage,
+      potential: seed.potential,
+      estimatedValue: sanitizeEstimatedValue(seed.estimatedValue),
+      notes: clampString(seed.notes, FIELD_LIMITS.notes),
+      meetingDate: clampString(seed.meetingDate, FIELD_LIMITS.meetingDate),
+      interestLevel: seed.interestLevel,
+      nextAction: clampString(seed.nextAction, FIELD_LIMITS.nextAction),
+      nextFollowUpDate: clampString(seed.nextFollowUpDate, FIELD_LIMITS.nextFollowUpDate),
+      lastContactAt: '',
+      lastInteractionSummary: '',
+      interactionCount: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    };
-
-    // Create workspace first so Master Gate parent lookup passes on lead batch creation
-    await setDoc(workspaceRef, workspacePayload);
-
-    const seeds = getCaioSeedContacts(todayISO);
-    const batch = writeBatch(db);
-
-    for (const seed of seeds) {
-      const leadRef = doc(db, 'workspaces', uid, 'leads', seed.seedId);
-      batch.set(leadRef, {
-        ownerId: uid,
-        workspaceId: uid,
-        fullName: clampString(seed.fullName, FIELD_LIMITS.fullName) || 'A confirmar',
-        company: clampString(seed.company, FIELD_LIMITS.company) || 'Empresa não informada',
-        phone: clampString(seed.phone, FIELD_LIMITS.phone),
-        email: clampString(seed.email, FIELD_LIMITS.email),
-        city: clampString(seed.city, FIELD_LIMITS.city),
-        segment: clampString(seed.segment, FIELD_LIMITS.segment),
-        source: clampString(seed.source || CAIO_REFERRAL_SOURCE, FIELD_LIMITS.source),
-        importedFromCaioSheet: true,
-        entryDate: clampString(seed.entryDate || todayISO, FIELD_LIMITS.entryDate),
-        ownerName: clampString(seed.ownerName, FIELD_LIMITS.ownerName),
-        stage: seed.stage,
-        potential: seed.potential,
-        estimatedValue: sanitizeEstimatedValue(seed.estimatedValue),
-        notes: clampString(seed.notes, FIELD_LIMITS.notes),
-        meetingDate: clampString(seed.meetingDate, FIELD_LIMITS.meetingDate),
-        interestLevel: seed.interestLevel,
-        nextAction: clampString(seed.nextAction, FIELD_LIMITS.nextAction),
-        nextFollowUpDate: clampString(seed.nextFollowUpDate, FIELD_LIMITS.nextFollowUpDate),
-        lastContactAt: '',
-        lastInteractionSummary: '',
-        interactionCount: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    await batch.commit();
-
-    return {
-      id: uid,
-      ownerId: uid,
-      ownerEmail: workspacePayload.ownerEmail,
-      name: workspacePayload.name,
-      caioBaseImported: true,
-      caioBaseImportedAt: nowISO,
-    };
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, workspacePath);
+    });
   }
+
+  try {
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `${workspacePath}/leads`);
+  }
+
+  return {
+    id: uid,
+    ownerId: uid,
+    ownerEmail: workspacePayload.ownerEmail,
+    name: workspacePayload.name,
+    caioBaseImported: true,
+    caioBaseImportedAt: nowISO,
+  };
 }
 
 export function subscribeLeads(

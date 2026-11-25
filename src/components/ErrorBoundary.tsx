@@ -22,7 +22,9 @@ export class ErrorBoundary extends React.Component<
     try {
       const parsed = JSON.parse(error.message);
       if (parsed && typeof parsed.error === 'string') {
-        readable = `Erro de sincronização (${parsed.operationType || 'operação'}): ${parsed.error}`;
+        const provider = parsed.authInfo?.providerInfo?.[0]?.providerId || 'desconhecido';
+        const verified = parsed.authInfo?.emailVerified ? 'verificado' : 'não verificado';
+        readable = `Erro de sincronização (${parsed.operationType || 'operação'} em ${parsed.path || 'banco'} · ${provider}, ${verified}): ${parsed.error}`;
       }
     } catch {
       // keep original message
