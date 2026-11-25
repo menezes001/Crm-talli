@@ -5,7 +5,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { ArrowRight, Check, ExternalLink, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Check, ExternalLink, Eye, EyeOff, KeyRound, UserPlus } from 'lucide-react';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { auth } from '../lib/firebase';
 import { TalliSymbol, TalliWordmark } from './TalliBrand';
@@ -18,6 +18,8 @@ interface AuthFeedback {
   detail: string;
   code?: string;
   showEnableProviderLink?: boolean;
+  offerCreateAccount?: boolean;
+  offerResetPassword?: boolean;
 }
 
 function mapEmailAuthError(err: unknown, mode: AuthMode): AuthFeedback {
@@ -31,7 +33,7 @@ function mapEmailAuthError(err: unknown, mode: AuthMode): AuthFeedback {
       type: 'error',
       title: 'Login por E-mail e Senha ainda não ativado no Firebase',
       detail:
-        'Ative o provedor "E-mail/senha" em Firebase Console → Authentication → Sign-in method para liberar o acesso com login e senha.',
+        'Ative o provedor "E-mail/senha" em Firebase Console → Authentication → Sign-in method para liberar o acesso.',
       code,
       showEnableProviderLink: true,
     };
@@ -44,21 +46,25 @@ function mapEmailAuthError(err: unknown, mode: AuthMode): AuthFeedback {
   ) {
     return {
       type: 'error',
-      title: 'E-mail ou senha incorretos',
+      title: 'E-mail ou senha não reconhecidos',
       detail:
         mode === 'login'
-          ? 'Verifique suas credenciais. Se for o seu primeiro acesso com este e-mail, use a aba "Criar acesso".'
+          ? 'Se for seu primeiro acesso, crie a conta abaixo. Se já entrou antes com Google, clique em definir senha para receber o link no seu e-mail.'
           : 'Não foi possível localizar uma conta com este e-mail.',
       code,
+      offerCreateAccount: mode === 'login',
+      offerResetPassword: mode === 'login',
     };
   }
 
   if (code === 'auth/email-already-in-use') {
     return {
       type: 'error',
-      title: 'Este e-mail já está cadastrado',
-      detail: 'Volte para a aba "Entrar" e acesse com sua senha.',
+      title: 'Este e-mail já tem cadastro',
+      detail:
+        'Se você já entrou antes com o Google e ainda não criou uma senha, envie o link abaixo para definir sua senha e manter seus dados.',
       code,
+      offerResetPassword: true,
     };
   }
 
@@ -75,7 +81,7 @@ function mapEmailAuthError(err: unknown, mode: AuthMode): AuthFeedback {
     return {
       type: 'error',
       title: 'E-mail inválido',
-      detail: 'Digite um endereço de e-mail válido (ex: voce@tallimarketing.com.br).',
+      detail: 'Digite um endereço de e-mail válido.',
       code,
     };
   }
@@ -84,8 +90,9 @@ function mapEmailAuthError(err: unknown, mode: AuthMode): AuthFeedback {
     return {
       type: 'error',
       title: 'Muitas tentativas em sequência',
-      detail: 'Aguarde alguns minutos antes de tentar novamente ou redefina sua senha.',
+      detail: 'Aguarde alguns minutos ou redefina sua senha pelo link abaixo.',
       code,
+      offerResetPassword: true,
     };
   }
 
@@ -122,9 +129,52 @@ export function AuthGate() {
     setFeedback(null);
   };
 
+  const handleQuickCreateAccount = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || password.length < 6) {
+      switchMode('register');
+      return;
+    }
+
+    setLoading(true);
+    setFeedback(null);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      if (displayName.trim()) {
+        await updateProfile(cred.user, { displayName: displayName.trim() });
+      }
+    } catch (err) {
+      setFeedback(mapEmailAuthError(err, 'register'));
+      setLoading(false);
+    }
+  };
+
+  const handleQuickSendReset = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      switchMode('reset');
+      return;
+    }
+
+    setLoading(true);
+    setFeedback(null);
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+      setFeedback({
+        type: 'success',
+        title: 'Link enviado para o seu e-mail',
+        detail: `Abra a mensagem enviada para ${cleanEmail} (verifique também o Spam), defina sua senha e volte aqui para entrar.`,
+      });
+    } catch (err) {
+      setFeedback(mapEmailAuthError(err, 'reset'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
       setFeedback({
         type: 'error',
@@ -158,8 +208,8 @@ export function AuthGate() {
         await sendPasswordResetEmail(auth, cleanEmail);
         setFeedback({
           type: 'success',
-          title: 'E-mail de recuperação enviado',
-          detail: `Enviamos as instruções de redefinição de senha para ${cleanEmail}.`,
+          title: 'Link enviado para o seu e-mail',
+          detail: `Abra a mensagem enviada para ${cleanEmail} (verifique também o Spam), defina sua senha e volte aqui para entrar.`,
         });
         setLoading(false);
       }
@@ -170,16 +220,16 @@ export function AuthGate() {
   };
 
   return (
-    <div className="min-h-screen bg-[#12241D] text-[#F4F1EA] flex flex-col p-6 md:p-10">
+    <div className="min-h-screen bg-[#12241D] text-[#F4F1EA] flex flex-col p-5 md:p-10">
       {/* Top Bar */}
       <header className="max-w-5xl w-full mx-auto flex items-center">
         <TalliWordmark variant="light" className="h-6 w-auto" />
       </header>
 
       {/* Main Content */}
-      <main className="max-w-5xl w-full mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center py-10">
+      <main className="max-w-5xl w-full mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center py-6 lg:py-10">
         <div className="lg:col-span-7">
-          <h1 className="text-4xl md:text-5xl lg:text-[3.25rem] font-light tracking-tight text-[#F4F1EA] leading-[1.1] [text-wrap:balance] max-w-xl">
+          <h1 className="text-2xl sm:text-4xl lg:text-[3.25rem] font-light tracking-tight text-[#F4F1EA] leading-[1.12] [text-wrap:balance] max-w-xl">
             Gestão comercial com{' '}
             <em className="italic font-light text-[#FF5A1F]">clareza</em> do primeiro contato
             ao fechamento.
@@ -188,15 +238,15 @@ export function AuthGate() {
 
         {/* Email & Password Card in Linho */}
         <div className="lg:col-span-5">
-          <div className="bg-[#F4F1EA] text-[#12241D] rounded-xl p-7 border border-[#22392F]">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-[#F4F1EA] text-[#12241D] rounded-xl p-6 sm:p-7 border border-[#22392F]">
+            <div className="flex items-center justify-between mb-5">
               <TalliSymbol variant="dark" dotColor="#FF5A1F" className="h-8 w-8" />
               <h2 className="text-lg font-semibold tracking-tight text-[#12241D]">
                 {mode === 'login'
                   ? 'Entrar'
                   : mode === 'register'
                     ? 'Criar acesso'
-                    : 'Recuperar senha'}
+                    : 'Definir senha'}
               </h2>
             </div>
 
@@ -228,10 +278,10 @@ export function AuthGate() {
               </div>
             )}
 
-            {/* Error / Success Feedback */}
+            {/* Error / Success Feedback with Direct Recovery Actions */}
             {feedback && (
               <div
-                className={`mt-4 p-3.5 rounded-lg text-xs leading-relaxed space-y-1.5 border ${
+                className={`mt-4 p-3.5 rounded-lg text-xs leading-relaxed space-y-2 border ${
                   feedback.type === 'success'
                     ? 'bg-[#E7F4EC] border-[#1D6F42]/35 text-[#12241D]'
                     : 'bg-[#FFD9C7]/65 border-[#FF5A1F]/40 text-[#12241D]'
@@ -244,11 +294,34 @@ export function AuthGate() {
                   <span>{feedback.title}</span>
                 </p>
                 <p className="text-[#12241D]/85">{feedback.detail}</p>
-                {feedback.code && (
-                  <p className="font-mono text-[11px] text-[#12241D]/60">
-                    Código: {feedback.code}
-                  </p>
+
+                {(feedback.offerCreateAccount || feedback.offerResetPassword) && (
+                  <div className="pt-1 flex flex-col gap-1.5">
+                    {feedback.offerCreateAccount && (
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => void handleQuickCreateAccount()}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-[#12241D] text-[#F4F1EA] rounded-md hover:bg-[#22392F] transition-colors disabled:opacity-60 cursor-pointer"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        Criar acesso com este e-mail e senha
+                      </button>
+                    )}
+                    {feedback.offerResetPassword && (
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => void handleQuickSendReset()}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white text-[#12241D] border border-[#12241D]/20 rounded-md hover:bg-[#F4F1EA] transition-colors disabled:opacity-60 cursor-pointer"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        Enviar link para definir senha no e-mail
+                      </button>
+                    )}
+                  </div>
                 )}
+
                 {feedback.showEnableProviderLink && (
                   <a
                     href={providersConsoleUrl}
@@ -297,6 +370,9 @@ export function AuthGate() {
                   type="email"
                   required
                   autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seuemail@tallimarketing.com.br"
@@ -319,7 +395,7 @@ export function AuthGate() {
                         onClick={() => switchMode('reset')}
                         className="text-[11px] font-medium text-[#12241D]/65 hover:text-[#C43E0F] cursor-pointer"
                       >
-                        Esqueci a senha
+                        Esqueci / definir senha
                       </button>
                     )}
                   </div>
@@ -329,6 +405,8 @@ export function AuthGate() {
                       type={showPassword ? 'text' : 'password'}
                       required
                       minLength={6}
+                      autoCapitalize="none"
+                      autoCorrect="off"
                       autoComplete={
                         mode === 'register' ? 'new-password' : 'current-password'
                       }
