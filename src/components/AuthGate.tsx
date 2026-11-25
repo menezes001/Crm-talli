@@ -5,7 +5,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { ArrowRight, Check, ExternalLink, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, ExternalLink, Eye, EyeOff } from 'lucide-react';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { auth } from '../lib/firebase';
 import { TalliSymbol, TalliWordmark } from './TalliBrand';
@@ -170,78 +170,39 @@ export function AuthGate() {
   };
 
   return (
-    <div className="min-h-screen bg-[#12241D] text-[#F4F1EA] flex flex-col justify-between p-6 md:p-10">
+    <div className="min-h-screen bg-[#12241D] text-[#F4F1EA] flex flex-col p-6 md:p-10">
       {/* Top Bar */}
-      <header className="max-w-5xl w-full mx-auto flex items-center justify-between gap-4">
+      <header className="max-w-5xl w-full mx-auto flex items-center">
         <TalliWordmark variant="light" className="h-6 w-auto" />
-        <span className="text-xs font-mono tracking-wide text-[#F4F1EA]/65">
-          CRM COMERCIAL · TALLI MARKETING
-        </span>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-5xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center my-10">
-        <div className="lg:col-span-7 space-y-6">
-          <p className="text-xs font-mono tracking-wider text-[#F4F1EA]/70">
-            Marketing 360 para arquitetura e decoração
-          </p>
-
-          <h1 className="text-4xl md:text-5xl font-light tracking-tight text-[#F4F1EA] leading-[1.12] [text-wrap:balance]">
+      <main className="max-w-5xl w-full mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center py-10">
+        <div className="lg:col-span-7">
+          <h1 className="text-4xl md:text-5xl lg:text-[3.25rem] font-light tracking-tight text-[#F4F1EA] leading-[1.1] [text-wrap:balance] max-w-xl">
             Gestão comercial com{' '}
             <em className="italic font-light text-[#FF5A1F]">clareza</em> do primeiro contato
             ao fechamento.
           </h1>
-
-          <p className="text-base font-normal text-[#F4F1EA]/75 leading-relaxed max-w-xl">
-            Centralize oportunidades, acompanhe cada etapa do funil de vendas, registre o
-            histórico completo de interações e mantenha todos os follow-ups sob controle em
-            tempo real.
-          </p>
-
-          <div className="pt-6 border-t border-[#22392F] grid grid-cols-3 gap-6 max-w-lg">
-            <div>
-              <p className="text-3xl font-light text-[#F4F1EA] font-mono tabular-nums">10</p>
-              <p className="text-xs text-[#F4F1EA]/60 mt-1">Etapas no funil</p>
-            </div>
-            <div>
-              <p className="text-3xl font-light text-[#F4F1EA] font-mono tabular-nums">360°</p>
-              <p className="text-xs text-[#F4F1EA]/60 mt-1">Histórico completo</p>
-            </div>
-            <div>
-              <p className="text-3xl font-light text-[#F4F1EA] font-mono tabular-nums">100%</p>
-              <p className="text-xs text-[#F4F1EA]/60 mt-1">Dados em nuvem</p>
-            </div>
-          </div>
         </div>
 
         {/* Email & Password Card in Linho */}
         <div className="lg:col-span-5">
           <div className="bg-[#F4F1EA] text-[#12241D] rounded-xl p-7 border border-[#22392F]">
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-6">
               <TalliSymbol variant="dark" dotColor="#FF5A1F" className="h-8 w-8" />
-              <span className="text-[11px] font-mono text-[#12241D]/60">
-                ACESSO RESTRITO
-              </span>
+              <h2 className="text-lg font-semibold tracking-tight text-[#12241D]">
+                {mode === 'login'
+                  ? 'Entrar'
+                  : mode === 'register'
+                    ? 'Criar acesso'
+                    : 'Recuperar senha'}
+              </h2>
             </div>
-
-            <h2 className="text-xl font-semibold tracking-tight text-[#12241D]">
-              {mode === 'login'
-                ? 'Entrar no CRM'
-                : mode === 'register'
-                  ? 'Criar acesso comercial'
-                  : 'Recuperar senha'}
-            </h2>
-            <p className="text-xs text-[#12241D]/65 mt-1 leading-relaxed">
-              {mode === 'login'
-                ? 'Informe seu e-mail e senha para acessar o painel comercial.'
-                : mode === 'register'
-                  ? 'Cadastre seu e-mail e defina sua senha de acesso ao workspace.'
-                  : 'Informe seu e-mail cadastrado para receber o link de redefinição.'}
-            </p>
 
             {/* Mode Switcher */}
             {mode !== 'reset' && (
-              <div className="mt-5 grid grid-cols-2 gap-1 p-1 bg-[#E7E2D7] rounded-lg">
+              <div className="grid grid-cols-2 gap-1 p-1 bg-[#E7E2D7] rounded-lg">
                 <button
                   type="button"
                   onClick={() => switchMode('login')}
@@ -401,10 +362,10 @@ export function AuthGate() {
                   {loading
                     ? 'Processando...'
                     : mode === 'login'
-                      ? 'Entrar no CRM'
+                      ? 'Entrar'
                       : mode === 'register'
-                        ? 'Criar acesso e entrar'
-                        : 'Enviar link de recuperação'}
+                        ? 'Criar acesso'
+                        : 'Enviar link'}
                 </span>
                 {!loading && <ArrowRight className="w-4 h-4" />}
               </button>
@@ -415,26 +376,13 @@ export function AuthGate() {
                   onClick={() => switchMode('login')}
                   className="w-full text-center text-xs font-medium text-[#12241D]/70 hover:text-[#12241D] cursor-pointer"
                 >
-                  Voltar para o login
+                  Voltar
                 </button>
               )}
             </form>
-
-            <div className="mt-5 pt-4 border-t border-[#E2DDD2] flex items-start gap-2.5 text-xs text-[#12241D]/65">
-              <ShieldCheck className="w-4 h-4 text-[#22392F] shrink-0 mt-0.5" />
-              <span>
-                Autenticação protegida com dados salvos em nuvem e isolados no seu workspace.
-              </span>
-            </div>
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="max-w-5xl w-full mx-auto text-xs font-mono text-[#F4F1EA]/45 flex flex-wrap items-center justify-between gap-2 border-t border-[#22392F] pt-4">
-        <span>talli marketing · arquitetura e decoração</span>
-        <span>Workspace comercial privado</span>
-      </footer>
     </div>
   );
 }
