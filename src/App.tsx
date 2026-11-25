@@ -4,6 +4,7 @@ import {
   BellRing,
   Check,
   Kanban,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -46,6 +47,7 @@ import { FollowUpsView } from './components/FollowUpsView';
 import { LeadDetailDrawer } from './components/LeadDetailDrawer';
 import { LogInteractionModal } from './components/LogInteractionModal';
 import { NewLeadModal } from './components/NewLeadModal';
+import { PasswordModal } from './components/PasswordModal';
 
 const NAV_ITEMS: { id: ViewSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -67,6 +69,7 @@ export default function App() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [interactionTargetLeadId, setInteractionTargetLeadId] = useState<string | null>(null);
   const [showNewLeadModal, setShowNewLeadModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -324,15 +327,26 @@ export default function App() {
               </p>
               <p className="text-[11px] font-mono text-[#F4F1EA]/45 truncate">{user.email}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => void signOut(auth)}
-              title="Sair da conta"
-              aria-label="Sair da conta"
-              className="p-1.5 text-[#F4F1EA]/55 hover:text-[#F4F1EA] hover:bg-[#22392F] rounded-md transition-colors cursor-pointer shrink-0"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowPasswordModal(true)}
+                title="Definir ou alterar senha"
+                aria-label="Definir ou alterar senha"
+                className="p-1.5 text-[#F4F1EA]/55 hover:text-[#F4F1EA] hover:bg-[#22392F] rounded-md transition-colors cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void signOut(auth)}
+                title="Sair da conta"
+                aria-label="Sair da conta"
+                className="p-1.5 text-[#F4F1EA]/55 hover:text-[#F4F1EA] hover:bg-[#22392F] rounded-md transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -396,14 +410,27 @@ export default function App() {
                 </p>
                 <p className="text-[11px] font-mono text-[#F4F1EA]/45 truncate">{user.email}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => void signOut(auth)}
-                className="p-1.5 text-[#F4F1EA]/60 hover:text-[#F4F1EA]"
-                aria-label="Sair"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setShowPasswordModal(true);
+                  }}
+                  className="p-1.5 text-[#F4F1EA]/60 hover:text-[#F4F1EA]"
+                  aria-label="Definir ou alterar senha"
+                >
+                  <KeyRound className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void signOut(auth)}
+                  className="p-1.5 text-[#F4F1EA]/60 hover:text-[#F4F1EA]"
+                  aria-label="Sair"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
           <div
@@ -591,6 +618,15 @@ export default function App() {
           defaultOwnerName={user.displayName || ''}
           onClose={() => setShowNewLeadModal(false)}
           onCreate={handleCreateLead}
+        />
+      )}
+
+      {/* Password Setup / Update Modal */}
+      {showPasswordModal && (
+        <PasswordModal
+          user={user}
+          onClose={() => setShowPasswordModal(false)}
+          onSuccess={(msg) => showToast(msg)}
         />
       )}
 

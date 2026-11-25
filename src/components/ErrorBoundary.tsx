@@ -1,5 +1,7 @@
 import React from 'react';
-import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { AlertTriangle, LogOut, RotateCcw } from 'lucide-react';
+import { auth } from '../lib/firebase';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -46,14 +48,27 @@ export class ErrorBoundary extends React.Component<
             <p className="text-sm text-[#12241D]/75 leading-relaxed mb-5 break-words">
               {this.state.message}
             </p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#12241D] bg-[#FF5A1F] rounded-lg hover:bg-[#e84f18] transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Recarregar CRM
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#12241D] bg-[#FF5A1F] rounded-lg hover:bg-[#e84f18] transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Recarregar CRM
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut(auth).catch(() => undefined);
+                  window.location.reload();
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#12241D] bg-[#F4F1EA] border border-[#D8D2C5] rounded-lg hover:bg-[#E7E2D7] transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                Voltar ao login
+              </button>
+            </div>
           </div>
         </div>
       );
