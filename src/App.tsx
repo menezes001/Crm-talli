@@ -125,9 +125,12 @@ export default function App() {
       setInitializingWorkspace(true);
       setLoadingLeads(true);
       try {
-        await ensureWorkspaceAndSeed(user);
+        const { migratedCount } = await ensureWorkspaceAndSeed(user);
         if (cancelled) return;
         setInitializingWorkspace(false);
+        if (migratedCount > 0) {
+          showToast(`${migratedCount} contato(s) anterior(es) sincronizados na base compartilhada.`);
+        }
 
         unsubLeads = subscribeLeads(
           user.uid,
@@ -310,7 +313,7 @@ export default function App() {
         <div className="p-4 border-t border-[#22392F] space-y-3.5">
           <div className="bg-[#22392F]/65 rounded-lg p-3 space-y-1.5">
             <p className="text-[11px] font-mono text-[#F4F1EA]/60">
-              BASE CAIO PELISSON
+              BASE COMPARTILHADA · TALLI
             </p>
             <div className="flex items-baseline justify-between text-xs font-mono tabular-nums">
               <span className="text-[#F4F1EA]">

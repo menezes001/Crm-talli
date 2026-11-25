@@ -354,16 +354,72 @@
         "stageAfter",
         "createdAt"
       ]
+    },
+    "WorkspaceMember": {
+      "title": "WorkspaceMember",
+      "description": "Authenticated team member enrolled in the shared Talli CRM workspace.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Firebase Auth UID of the team member."
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 254,
+          "description": "Email address of the team member."
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Display name of the team member."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["member"],
+          "description": "Role within the shared commercial workspace."
+        },
+        "legacyMigrated": {
+          "type": "boolean",
+          "description": "Whether any prior personal workspace leads for this user were merged into the shared workspace."
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the member joined the shared workspace."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last membership update."
+        }
+      },
+      "required": [
+        "uid",
+        "email",
+        "displayName",
+        "role",
+        "legacyMigrated",
+        "joinedAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
     "/workspaces/{workspaceId}": {
       "schema": { "$ref": "#/entities/Workspace" },
-      "description": "Root private CRM workspace per authenticated user (workspaceId == ownerId)."
+      "description": "Shared Talli CRM workspace (talli-comercial) or legacy per-user workspace."
+    },
+    "/workspaces/{workspaceId}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/WorkspaceMember" },
+      "description": "Authenticated team members authorized in the shared workspace."
     },
     "/workspaces/{workspaceId}/leads/{leadId}": {
       "schema": { "$ref": "#/entities/Lead" },
-      "description": "Commercial leads and opportunities belonging to the workspace."
+      "description": "Shared commercial leads and opportunities belonging to the workspace."
     },
     "/workspaces/{workspaceId}/leads/{leadId}/interactions/{interactionId}": {
       "schema": { "$ref": "#/entities/Interaction" },

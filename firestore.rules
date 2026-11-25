@@ -22,6 +22,10 @@ service cloud.firestore {
         );
     }
 
+    function isSharedWorkspace(workspaceId) {
+      return workspaceId == 'talli-comercial';
+    }
+
     function isValidId(id) {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
     }
@@ -89,13 +93,30 @@ service cloud.firestore {
           'caioBaseImportedAt', 'createdAt', 'updatedAt'
         ])
         && isValidId(data.ownerId)
-        && data.ownerId == request.auth.uid
-        && data.ownerId == workspaceId
+        && (isSharedWorkspace(workspaceId) || data.ownerId == workspaceId)
         && data.ownerEmail is string && data.ownerEmail.size() <= 254
         && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
         && data.caioBaseImported is bool
         && data.caioBaseImportedAt is string && data.caioBaseImportedAt.size() <= 40
         && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMember(data, memberId) {
+      return data.keys().hasAll([
+          'uid', 'email', 'displayName', 'role', 'legacyMigrated', 'joinedAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'email', 'displayName', 'role', 'legacyMigrated', 'joinedAt', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.uid == memberId
+        && data.email is string && data.email.size() <= 254
+        && data.displayName is string && data.displayName.size() <= 120
+        && data.role == 'member'
+        && data.legacyMigrated is bool
+        && data.joinedAt is timestamp
         && data.updatedAt is timestamp;
     }
 
@@ -117,7 +138,6 @@ service cloud.firestore {
           'createdAt', 'updatedAt'
         ])
         && isValidId(data.ownerId)
-        && data.ownerId == request.auth.uid
         && isValidId(data.workspaceId)
         && data.workspaceId == workspaceId
         && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 160
@@ -179,39 +199,49 @@ service cloud.firestore {
     }
 
     // --- Relational Master Gate Helpers ---
-    function isWorkspaceOwner(workspaceId) {
-      return exists(/databases/$(database)/documents/workspaces/$(workspaceId))
+    function isTeamMember(workspaceId) {
+      return isSharedWorkspace(workspaceId)
+        && exists(/databases/$(database)/documents/workspaces/$(workspaceId))
+        && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid));
+    }
+
+    function isLegacyWorkspaceOwner(workspaceId) {
+      return workspaceId == request.auth.uid
+        && exists(/databases/$(database)/documents/workspaces/$(workspaceId))
         && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid;
     }
 
-    function isLeadOwner(workspaceId, leadId) {
-      return exists(/databases/$(database)/documents/workspaces/$(workspaceId)/leads/$(leadId))
-        && get(/databases/$(database)/documents/workspaces/$(workspaceId)/leads/$(leadId)).data.ownerId == request.auth.uid;
+    function canReadWorkspace(workspaceId) {
+      return isTeamMember(workspaceId) || isLegacyWorkspaceOwner(workspaceId);
+    }
+
+    function leadExists(workspaceId, leadId) {
+      return exists(/databases/$(database)/documents/workspaces/$(workspaceId)/leads/$(leadId));
     }
 
     // --- Collection: Workspaces ---
     match /workspaces/{workspaceId} {
       allow get: if isVerifiedUser()
         && isValidId(workspaceId)
-        && workspaceId == request.auth.uid;
+        && (isSharedWorkspace(workspaceId) || workspaceId == request.auth.uid);
 
       allow list: if false;
 
       allow create: if isVerifiedUser()
         && isValidId(workspaceId)
-        && workspaceId == request.auth.uid
+        && (isSharedWorkspace(workspaceId) || workspaceId == request.auth.uid)
         && isValidWorkspace(incoming(), workspaceId)
+        && incoming().ownerId == request.auth.uid
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
 
       allow update: if isVerifiedUser()
         && isValidId(workspaceId)
-        && workspaceId == request.auth.uid
         && isValidWorkspace(incoming(), workspaceId)
-        && existing().ownerId == request.auth.uid
         && incoming().ownerId == existing().ownerId
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time
+        && (isTeamMember(workspaceId) || (workspaceId == request.auth.uid && existing().ownerId == request.auth.uid))
         && (
           // Action: Update workspace metadata or import flag
           incoming().diff(existing()).affectedKeys().hasOnly(['name', 'caioBaseImported', 'caioBaseImportedAt', 'updatedAt'])
@@ -219,43 +249,79 @@ service cloud.firestore {
 
       allow delete: if false;
 
+      // --- Subcollection: Team Members (PII strictly isolated to own member record) ---
+      match /members/{memberId} {
+        allow get: if isVerifiedUser()
+          && isValidId(workspaceId)
+          && isValidId(memberId)
+          && isSharedWorkspace(workspaceId)
+          && memberId == request.auth.uid;
+
+        allow list: if false;
+
+        allow create: if isVerifiedUser()
+          && isValidId(workspaceId)
+          && isValidId(memberId)
+          && isSharedWorkspace(workspaceId)
+          && memberId == request.auth.uid
+          && isValidMember(incoming(), memberId)
+          && incoming().joinedAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/workspaces/$(workspaceId));
+
+        allow update: if isVerifiedUser()
+          && isValidId(workspaceId)
+          && isValidId(memberId)
+          && isSharedWorkspace(workspaceId)
+          && memberId == request.auth.uid
+          && isValidMember(incoming(), memberId)
+          && existing().uid == request.auth.uid
+          && incoming().uid == existing().uid
+          && incoming().role == existing().role
+          && incoming().joinedAt == existing().joinedAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'legacyMigrated', 'updatedAt']);
+
+        allow delete: if false;
+      }
+
       // --- Subcollection: Leads ---
       match /leads/{leadId} {
         allow get: if isVerifiedUser()
           && isValidId(workspaceId)
           && isValidId(leadId)
-          && workspaceId == request.auth.uid
-          && existing().ownerId == request.auth.uid
-          && isWorkspaceOwner(workspaceId);
+          && canReadWorkspace(workspaceId)
+          && (isSharedWorkspace(workspaceId) || existing().ownerId == request.auth.uid);
 
-        // Secure list query enforced directly on resource.data without get() calls
+        // Secure list query enforced directly on resource.data without get()/exists() calls
         allow list: if isVerifiedUser()
-          && workspaceId == request.auth.uid
-          && resource.data.ownerId == request.auth.uid
-          && resource.data.workspaceId == workspaceId;
+          && (
+            (isSharedWorkspace(workspaceId) && resource.data.workspaceId == 'talli-comercial')
+            || (workspaceId == request.auth.uid
+                && resource.data.ownerId == request.auth.uid
+                && resource.data.workspaceId == workspaceId)
+          );
 
         allow create: if isVerifiedUser()
           && isValidId(workspaceId)
           && isValidId(leadId)
-          && workspaceId == request.auth.uid
           && isValidLead(incoming(), workspaceId)
+          && incoming().ownerId == request.auth.uid
           && incoming().interactionCount == 0
           && incoming().createdAt == request.time
           && incoming().updatedAt == request.time
-          && isWorkspaceOwner(workspaceId);
+          && isTeamMember(workspaceId);
 
         allow update: if isVerifiedUser()
           && isValidId(workspaceId)
           && isValidId(leadId)
-          && workspaceId == request.auth.uid
           && isValidLead(incoming(), workspaceId)
-          && existing().ownerId == request.auth.uid
           && incoming().ownerId == existing().ownerId
           && incoming().workspaceId == existing().workspaceId
           && incoming().importedFromCaioSheet == existing().importedFromCaioSheet
           && incoming().createdAt == existing().createdAt
           && incoming().updatedAt == request.time
-          && isWorkspaceOwner(workspaceId)
+          && isTeamMember(workspaceId)
           && (
             // Action 1: Quick funnel stage move
             (
@@ -284,9 +350,7 @@ service cloud.firestore {
         allow delete: if isVerifiedUser()
           && isValidId(workspaceId)
           && isValidId(leadId)
-          && workspaceId == request.auth.uid
-          && existing().ownerId == request.auth.uid
-          && isWorkspaceOwner(workspaceId);
+          && isTeamMember(workspaceId);
 
         // --- Subcollection: Interactions (Append-only history) ---
         match /interactions/{interactionId} {
@@ -294,27 +358,31 @@ service cloud.firestore {
             && isValidId(workspaceId)
             && isValidId(leadId)
             && isValidId(interactionId)
-            && workspaceId == request.auth.uid
-            && existing().ownerId == request.auth.uid
-            && isLeadOwner(workspaceId, leadId);
+            && canReadWorkspace(workspaceId)
+            && leadExists(workspaceId, leadId)
+            && (isSharedWorkspace(workspaceId) || existing().ownerId == request.auth.uid);
 
           // Secure list query enforced directly on resource.data
           allow list: if isVerifiedUser()
-            && workspaceId == request.auth.uid
-            && resource.data.ownerId == request.auth.uid
-            && resource.data.workspaceId == workspaceId
-            && resource.data.leadId == leadId;
+            && (
+              (isSharedWorkspace(workspaceId)
+                && resource.data.workspaceId == 'talli-comercial'
+                && resource.data.leadId == leadId)
+              || (workspaceId == request.auth.uid
+                  && resource.data.ownerId == request.auth.uid
+                  && resource.data.workspaceId == workspaceId
+                  && resource.data.leadId == leadId)
+            );
 
           // Atomicity guarantee: parent lead interactionCount must increment in the same batch
           allow create: if isVerifiedUser()
             && isValidId(workspaceId)
             && isValidId(leadId)
             && isValidId(interactionId)
-            && workspaceId == request.auth.uid
             && isValidInteraction(incoming(), workspaceId, leadId)
             && incoming().createdAt == request.time
-            && isWorkspaceOwner(workspaceId)
-            && isLeadOwner(workspaceId, leadId)
+            && isTeamMember(workspaceId)
+            && leadExists(workspaceId, leadId)
             && getAfter(/databases/$(database)/documents/workspaces/$(workspaceId)/leads/$(leadId)).data.interactionCount
                == get(/databases/$(database)/documents/workspaces/$(workspaceId)/leads/$(leadId)).data.interactionCount + 1;
 
